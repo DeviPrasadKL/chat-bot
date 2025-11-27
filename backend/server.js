@@ -7,7 +7,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const PORT = process.env.PORT || 3001;
 const MODEL = "meta-llama/Meta-Llama-3-8B-Instruct";
+
+// Health check route
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", message: "Server is running!" });
+});
 
 app.post("/chat", async (req, res) => {
   const userMsg = req.body.message;
@@ -57,4 +63,4 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-app.listen(3001, () => console.log("Backend running on port 3001"));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
