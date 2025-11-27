@@ -27,7 +27,7 @@ npm install
 3. Create `.env` file with your Hugging Face API key:
 
 ```bash
-echo "HF_API_KEY=your_key_here" > .env
+echo "HF_TOKEN=your_key_here" > .env
 ```
 
 4. Start the Node server:
