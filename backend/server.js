@@ -16,51 +16,83 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
-  const userMsg = req.body.message;
+  const messages = req.body.messages;
 
-  if (!userMsg) return res.json({ reply: "Please type something." });
+  if (!messages || !messages.length) {
+    return res.json({ reply: "Please provide messages." });
+  }
+
+  // Convert frontend format → HF format
+  const hfMessages = messages.map((m) => ({
+    role: m.role === "bot" ? "assistant" : m.role,
+    content: m.text,
+  }));
 
   try {
-    const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.HF_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: "You are an assistant that always responds in English." },
-          { role: "user", content: userMsg }
-        ],
-        max_tokens: 200,
-        temperature: 0.7
-      }),
-    });
+    const response = await fetch(
+      "https://router.huggingface.co/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            {
+              role: "system",
+              content: "You are an assistant that always responds in English.",
+            },
+            ...hfMessages,
+          ],
+          max_tokens: 300,
+          temperature: 0.7,
+        }),
+      }
+    );
 
     const text = await response.text();
-    console.log("Raw HF Response:", text);
+    console.log("\n--- RAW HF RESPONSE ---\n", text);
 
     let data;
     try {
       data = JSON.parse(text);
     } catch {
-      return res.json({ reply: "Error: HuggingFace returned non-JSON." });
+      return res.json({ reply: "HuggingFace returned invalid JSON." });
     }
 
-    if (data.error) return res.json({ reply: `HF Error: ${data.error}` });
+    if (data.error) return res.json({ reply: data.error });
 
-    // ✅ Correct Llama /chat/completions response
-    const botReply = data.choices?.[0]?.message?.content;
+    // Extract reply
+    let botReply = null;
+    const choice = data.choices?.[0];
+
+    if (Array.isArray(choice?.message?.content)) {
+      botReply = choice.message.content
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+    }
+
+    if (!botReply) {
+      botReply =
+        choice?.message?.content ||
+        choice?.delta?.content ||
+        data.generated_text ||
+        (Array.isArray(data) ? data[0]?.generated_text : null);
+    }
 
     if (botReply) return res.json({ reply: botReply });
 
     return res.json({ reply: "Unknown HF response format." });
-
   } catch (err) {
     console.error("SERVER ERROR:", err);
     return res.json({ reply: "Server error contacting HuggingFace." });
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT}`)
+);

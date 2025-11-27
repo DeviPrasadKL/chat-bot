@@ -1,6 +1,6 @@
 export default function ChatInput({ input, setInput, sendMessage }) {
   return (
-    <div>
+    <div contentEditable={false}>
       <input
         value={input}
         onChange={(e) => setInput(e.target.value)}

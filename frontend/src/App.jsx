@@ -11,7 +11,9 @@ function App() {
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
   }, [messages, loading]);
 
   async function sendMessage() {
@@ -20,36 +22,41 @@ function App() {
     const userText = input;
     setInput("");
 
-    setMessages((prev) => [...prev, { role: "user", text: userText }]);
+    // Add user message
+    const newMessages = [...messages, { role: "user", text: userText }];
+    setMessages(newMessages);
     setLoading(true);
 
     try {
-      const res = await fetch("https://chat-bot-backend-i09t.onrender.com/chat", {
+      const res = await fetch("http://localhost:3001/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText }),
+        body: JSON.stringify({ messages: newMessages }), // send full history
       });
 
       const data = await res.json();
       const reply = data.reply || "I could not generate a response.";
 
-      setMessages((prev) => [...prev, { role: "bot", text: reply }]);
+      // Add bot message
+      setMessages(prev => [...prev, { role: "bot", text: reply }]);
+
     } catch (err) {
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
-        { role: "bot", text: "Error contacting AI server." },
+        { role: "bot", text: "Error contacting AI server." }
       ]);
     }
 
     setLoading(false);
   }
 
-  // Switch UI when VR is active
+
+  // Switch UI when VR mode active
   if (vrMode) {
     return (
       <div>
         <button
-          onClick={() => setVrMode(!vrMode)}
+          onClick={() => setVrMode(false)}
           style={{ position: "absolute", top: 20, left: 20, zIndex: 999 }}
         >
           Exit VR
@@ -63,7 +70,7 @@ function App() {
   return (
     <>
       <button
-        onClick={() => setVrMode(!vrMode)}
+        onClick={() => setVrMode(true)}
         style={{
           position: "absolute",
           top: 20,
